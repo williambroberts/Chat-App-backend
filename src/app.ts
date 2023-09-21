@@ -61,6 +61,7 @@ app.get("/",(req:any,res:Response)=>{
     res.status(200)
     res.json({
         success:true,
+        message:"hi will🕊️",
         count:req.session.count,
         id:req.sessionID,
         session:req.session

@@ -264,7 +264,7 @@ exports.resetPasswordController = (0, express_async_handler_1.default)((req, res
         // where email = ?
         // `,[newHash,email])
         const updatePwResult = yield db_1.default.updateUserPassword({ hash: newHash, table: config_1.tables.users, email: email });
-        const row = yield db_1.default.invalidateUsedPwResetToken({ hash: newHash, table: config_1.tables.resetPasswordTokens });
+        const row = yield db_1.default.invalidateUsedPwResetToken({ hash: hash, table: config_1.tables.resetPasswordTokens });
         console.log(updatePwResult, row);
         if (true) {
             //todo change here, redirect to login

@@ -273,7 +273,7 @@ export const resetPasswordController =ash(async(req:any,res:Response)=>{
         // where email = ?
         // `,[newHash,email])
         const updatePwResult = await db.updateUserPassword({hash:newHash,table:tables.users,email:email})
-        const row =await db.invalidateUsedPwResetToken({hash:newHash,table:tables.resetPasswordTokens})
+        const row =await db.invalidateUsedPwResetToken({hash:hash,table:tables.resetPasswordTokens})
         console.log(updatePwResult,row)
         if (true){
             //todo change here, redirect to login

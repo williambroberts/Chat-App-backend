@@ -37,10 +37,16 @@ const cookie_parser_1 = __importDefault(require("cookie-parser"));
 const helmet_1 = __importDefault(require("helmet"));
 const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const errorMiddleware_1 = require("./Middleware/errorMiddleware");
+const authRouter_1 = __importDefault(require("./Routers/authRouter"));
+const passport_1 = __importDefault(require("passport"));
 function createApp() {
     const app = (0, express_1.default)();
     const MySQLStore = (0, express_mysql_session_1.default)(SESSION);
     const sessionStore = new MySQLStore(config_1.dbOptions, config_1.default);
+    let NODE_ENV = "development";
+    if (process.env.NODE_ENV) {
+        NODE_ENV = process.env.NODE_ENV;
+    }
     let SESSION_NAME = "382734";
     let SESSION_SECRET = "wiejijea";
     if (process.env.SESSION_NAME) {
@@ -53,10 +59,12 @@ function createApp() {
         saveUninitialized: false,
         store: sessionStore,
         cookie: {
-            secure: false,
+            secure: NODE_ENV === "development" ? false : true,
             sameSite: 'none'
         }
     }));
+    app.use(passport_1.default.initialize());
+    app.use(passport_1.default.session());
     app.use((0, helmet_1.default)());
     app.use((0, cors_1.default)({
         origin: ['http://localhost:3000', 'https://chat-app-frontend-olive.vercel.app'],
@@ -87,6 +95,7 @@ function createApp() {
             session: req.session
         });
     });
+    app.use("/auth", authRouter_1.default);
     app.all("*", (req, res) => {
         res.status(404);
         res.json({

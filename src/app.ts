@@ -10,12 +10,18 @@ import helmet from "helmet"
 import rateLimit from "express-rate-limit"
 import { errorHandler } from "./Middleware/errorMiddleware"
 import { Response } from "express"
+import authRouter from "./Routers/authRouter"
+import passport from "passport"
 function createApp(){
 
 const app = express()
 const MySQLStore = MySQLSessionStore(SESSION)
 const sessionStore = new MySQLStore(dbOptions,pool);
 
+let NODE_ENV = "development"
+if (process.env.NODE_ENV){
+    NODE_ENV = process.env.NODE_ENV
+}
 let SESSION_NAME = "382734"
 let SESSION_SECRET = "wiejijea"
 if (process.env.SESSION_NAME){
@@ -28,10 +34,12 @@ app.use(session({
     saveUninitialized:false,
     store:sessionStore,
     cookie:{
-        secure:false,
+        secure:NODE_ENV==="development"?false:true,
         sameSite:'none'
     }
 }))
+app.use(passport.initialize())
+app.use(passport.session())
 
 app.use(helmet())
 app.use(cors({
@@ -68,7 +76,7 @@ app.get("/",(req:any,res:Response)=>{
     })
 })
 
-
+app.use("/auth",authRouter)
 
 
 

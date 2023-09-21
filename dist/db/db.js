@@ -69,6 +69,38 @@ const db = {
         where email = ?
         `, [email]);
         return row;
+    }),
+    insertNewResetToken: ({ hash, email, createdAt, expiresAt, table }) => __awaiter(void 0, void 0, void 0, function* () {
+        const [insertResult] = yield config_1.default.query(`
+        insert into ${table} (hash,email,createdAt,expiresAt)
+        values (?,?,?,?)
+        `, [hash, email, createdAt, expiresAt]);
+        return insertResult;
+    }),
+    getPasswordResetTokenFromDb: ({ email, now, table }) => __awaiter(void 0, void 0, void 0, function* () {
+        const [result] = yield config_1.default.query(`
+    select distinct * from ${table}
+    where email = ?
+    and used = 0
+    and expiresAt > ?
+    `, [email, now]);
+        return result;
+    }),
+    updateUserPassword: ({ table, hash, email }) => __awaiter(void 0, void 0, void 0, function* () {
+        const [updatePwResult] = yield config_1.default.query(`
+        update ${table}
+        set password = ?
+        where email = ?
+        `, [hash, email]);
+        return updatePwResult;
+    }),
+    invalidateUsedPwResetToken: ({ table, hash }) => __awaiter(void 0, void 0, void 0, function* () {
+        const [result] = yield config_1.default.query(`
+        update ${table}
+        set used = 1
+        where hash = ?
+        `, [hash]);
+        return result;
     })
 };
 // db.register = async ({email,password}:{email:string,password:string})=>{

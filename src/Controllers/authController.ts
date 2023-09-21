@@ -8,6 +8,7 @@ import { sendPasswordResetEmail, sendVerificationEmail } from "../utils/Emails/e
 import { hashPassword } from "../utils/Bycrypt/hashPassword"
 import { comparePassword } from "../utils/Bycrypt/ComparePasswords"
 import db from "../db/db"
+import { table } from "console"
 //email,verfiyToken,used,createdAt,expriredAt
 export const VerifyEmailController = ash(async(req:any,res:Response)=>{
     //link
@@ -175,7 +176,7 @@ export const logoutController = ash(async(req:any,res:Response)=>{
 
 
 export const statusController = ash(async(req:any,res:Response)=>{
-    console.log(req?.user,req.session.passport,"here will💛")
+    console.log(req?.user,req.session.passport,"here will💛",req.isAuthenticated())
     res.status(200)
     res.json({
         success:true,isAuth:req.isAuthenticated()
@@ -193,18 +194,23 @@ export const forgotPasswordController = ash(async(req:any,res:Response)=>{
     // set used = 1
     // where email = ?
     // `,[email])
-    const result = await db.invalidateAllResetTokens({table:tables.resetPasswordTokens})
+    const result = await db.invalidateAllResetTokens({table:tables.resetPasswordTokens,email:email})
     //see if there is a valid user here
-    const [row]=await pool.query(`
-    select distinct * from store_users
-    where email = ?
-    `,[email])
-    console.log(row)
+    // const [row]=await pool.query(`
+    // select distinct * from store_users
+    // where email = ?
+    // `,[email])
+    
+    if (!result){
+        throw new InternalServerError("Failed to invalidate all previous user tokens")
+    }
+    const row = await db.emailExists({table:tables.users,email:email})
+    console.log(row,"💛👏🏻❤️")
     if (row.length===0){
         //no email in db
         res.status(200)
         res.json({
-            success:true
+            success:true,row,result
         })
     }else {
         //genereate reset token
@@ -212,11 +218,8 @@ export const forgotPasswordController = ash(async(req:any,res:Response)=>{
         const hash = hashPassword(resetToken)
         //save hash to database as the token and make row entry
         const createdAt = new Date(Date.now())
-        const expireesAt = new Date(Date.now()+ 60*5*1000) //5mins
-        const [insertResult]= await pool.query(`
-        insert into resetPasswordTokens (hash,email,createdAt,expiresAt)
-        values (?,?,?,?)
-        `,[hash,email,createdAt,expireesAt])
+        const expiresAt = new Date(Date.now()+ 60*5*1000) //5mins
+        const insertResult = await db.insertNewResetToken({hash,email,createdAt,expiresAt,table:tables.resetPasswordTokens})
         // send email with resetToken in link
         
         await sendPasswordResetEmail(email,resetToken)
@@ -224,7 +227,7 @@ export const forgotPasswordController = ash(async(req:any,res:Response)=>{
         console.log(insertResult,origin,req.origin,req.originalUrl)
         res.status(200)
         res.json({
-            resetToken:resetToken,email:email,origin:origin
+            resetToken:resetToken,email:email,result,row,insertResult
         })
     }
     
@@ -244,12 +247,13 @@ export const resetPasswordController =ash(async(req:any,res:Response)=>{
     }
     const now = new Date(Date.now())
     //db has row with token and email and time before expired and unused token
-    const [result]=await pool.query(`
-    select distinct * from resetPasswordTokens
-    where email = ?
-    and used = 0
-    and expiresAt > ?
-    `,[email,now])
+    // const [result]=await pool.query(`
+    // select distinct * from resetPasswordTokens
+    // where email = ?
+    // and used = 0
+    // and expiresAt > ?
+    // `,[email,now])
+    const result = await db.getPasswordResetTokenFromDb({email,now,table:tables.resetPasswordTokens})
     if (result.length===0){
         // no db entry , either invalid email or resetToken or its too late or token is set to used already
         throw new BadRequestError("Invalid request")
@@ -263,22 +267,19 @@ export const resetPasswordController =ash(async(req:any,res:Response)=>{
         //todo update user password in db hash and save and return success & set used to true
         const newHash = hashPassword(newPassword)
 
-        const [updatePwResult]=await pool.query(`
-        update store_users
-        set password = ?
-        where email = ?
-        `,[newHash,email])
-        const [row]= await pool.query(`
-        update resetPasswordTokens
-        set used = 1
-        where hash = ?
-        `,[hash])
+        // const [updatePwResult]=await pool.query(`
+        // update store_users
+        // set password = ?
+        // where email = ?
+        // `,[newHash,email])
+        const updatePwResult = await db.updateUserPassword({hash:newHash,table:tables.users,email:email})
+        const row =await db.invalidateUsedPwResetToken({hash:newHash,table:tables.resetPasswordTokens})
         console.log(updatePwResult,row)
         if (true){
             //todo change here, redirect to login
             res.status(200)
             res.json({
-                success:true    
+                success:true,updatePwResult,row   
 
             })
         }

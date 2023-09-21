@@ -11,6 +11,10 @@ type dbType = {
     invalidateAllResetTokens:Function
     updateEmailVerificationToken:Function,
     verifyEmail:Function;
+    insertNewResetToken:Function
+    getPasswordResetTokenFromDb:Function;
+    updateUserPassword:Function;
+    invalidateUsedPwResetToken:Function;
 }
 const db:dbType = {
     emailExists:async ({email,table}:loginType)=>{
@@ -71,7 +75,40 @@ const db:dbType = {
         where email = ?
         `,[email])
         return row
+    },
+    insertNewResetToken:async({hash,email,createdAt,expiresAt,table}:{table:string,hash:string,email:string;createdAt:any,expiresAt:any})=>{
+        const [insertResult]= await pool.query(`
+        insert into ${table} (hash,email,createdAt,expiresAt)
+        values (?,?,?,?)
+        `,[hash,email,createdAt,expiresAt])
+        return insertResult
+    },
+    getPasswordResetTokenFromDb:async({email,now,table}:{email:string,now:any,table:string})=>{
+        const [result]=await pool.query(`
+    select distinct * from ${table}
+    where email = ?
+    and used = 0
+    and expiresAt > ?
+    `,[email,now])
+    return result
+    },
+    updateUserPassword:async({table,hash,email}:{table:string,email:string,hash:string})=>{
+        const [updatePwResult]=await pool.query(`
+        update ${table}
+        set password = ?
+        where email = ?
+        `,[hash,email])
+        return updatePwResult
+    },
+    invalidateUsedPwResetToken:async({table,hash}:{table:string,hash:string})=>{
+        const [result]=await pool.query(`
+        update ${table}
+        set used = 1
+        where hash = ?
+        `,[hash])
+        return result
     }
+    
 }
 
 

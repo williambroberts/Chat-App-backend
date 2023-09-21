@@ -1,27 +1,4 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -38,7 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.changePasswordController = exports.deleteAccountController = exports.updateProfileController = exports.resetPasswordController = exports.forgotPasswordController = exports.statusController = exports.logoutController = exports.loginController = exports.registerController = exports.generateVerificationTokenController = exports.failController = exports.VerifyEmailController = void 0;
 const express_async_handler_1 = __importDefault(require("express-async-handler"));
 const Errors_1 = require("../utils/Errors");
-const config_1 = __importStar(require("../db/config"));
+const config_1 = require("../db/config");
 const crypto_1 = __importDefault(require("crypto"));
 const email_1 = require("../utils/Emails/email");
 const hashPassword_1 = require("../utils/Bycrypt/hashPassword");
@@ -197,7 +174,7 @@ exports.logoutController = (0, express_async_handler_1.default)((req, res) => __
     }));
 }));
 exports.statusController = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    console.log(req === null || req === void 0 ? void 0 : req.user, req.session.passport, "here will💛");
+    console.log(req === null || req === void 0 ? void 0 : req.user, req.session.passport, "here will💛", req.isAuthenticated());
     res.status(200);
     res.json({
         success: true, isAuth: req.isAuthenticated()
@@ -214,18 +191,22 @@ exports.forgotPasswordController = (0, express_async_handler_1.default)((req, re
     // set used = 1
     // where email = ?
     // `,[email])
-    const result = yield db_1.default.invalidateAllResetTokens({ table: config_1.tables.resetPasswordTokens });
+    const result = yield db_1.default.invalidateAllResetTokens({ table: config_1.tables.resetPasswordTokens, email: email });
     //see if there is a valid user here
-    const [row] = yield config_1.default.query(`
-    select distinct * from store_users
-    where email = ?
-    `, [email]);
-    console.log(row);
+    // const [row]=await pool.query(`
+    // select distinct * from store_users
+    // where email = ?
+    // `,[email])
+    if (!result) {
+        throw new Errors_1.InternalServerError("Failed to invalidate all previous user tokens");
+    }
+    const row = yield db_1.default.emailExists({ table: config_1.tables.users, email: email });
+    console.log(row, "💛👏🏻❤️");
     if (row.length === 0) {
         //no email in db
         res.status(200);
         res.json({
-            success: true
+            success: true, row, result
         });
     }
     else {
@@ -234,18 +215,15 @@ exports.forgotPasswordController = (0, express_async_handler_1.default)((req, re
         const hash = (0, hashPassword_1.hashPassword)(resetToken);
         //save hash to database as the token and make row entry
         const createdAt = new Date(Date.now());
-        const expireesAt = new Date(Date.now() + 60 * 5 * 1000); //5mins
-        const [insertResult] = yield config_1.default.query(`
-        insert into resetPasswordTokens (hash,email,createdAt,expiresAt)
-        values (?,?,?,?)
-        `, [hash, email, createdAt, expireesAt]);
+        const expiresAt = new Date(Date.now() + 60 * 5 * 1000); //5mins
+        const insertResult = yield db_1.default.insertNewResetToken({ hash, email, createdAt, expiresAt, table: config_1.tables.resetPasswordTokens });
         // send email with resetToken in link
         yield (0, email_1.sendPasswordResetEmail)(email, resetToken);
         const origin = req.get('origin');
         console.log(insertResult, origin, req.origin, req.originalUrl);
         res.status(200);
         res.json({
-            resetToken: resetToken, email: email, origin: origin
+            resetToken: resetToken, email: email, result, row, insertResult
         });
     }
 }));
@@ -262,12 +240,13 @@ exports.resetPasswordController = (0, express_async_handler_1.default)((req, res
     }
     const now = new Date(Date.now());
     //db has row with token and email and time before expired and unused token
-    const [result] = yield config_1.default.query(`
-    select distinct * from resetPasswordTokens
-    where email = ?
-    and used = 0
-    and expiresAt > ?
-    `, [email, now]);
+    // const [result]=await pool.query(`
+    // select distinct * from resetPasswordTokens
+    // where email = ?
+    // and used = 0
+    // and expiresAt > ?
+    // `,[email,now])
+    const result = yield db_1.default.getPasswordResetTokenFromDb({ email, now, table: config_1.tables.resetPasswordTokens });
     if (result.length === 0) {
         // no db entry , either invalid email or resetToken or its too late or token is set to used already
         throw new Errors_1.BadRequestError("Invalid request");
@@ -279,22 +258,19 @@ exports.resetPasswordController = (0, express_async_handler_1.default)((req, res
     if (match) {
         //todo update user password in db hash and save and return success & set used to true
         const newHash = (0, hashPassword_1.hashPassword)(newPassword);
-        const [updatePwResult] = yield config_1.default.query(`
-        update store_users
-        set password = ?
-        where email = ?
-        `, [newHash, email]);
-        const [row] = yield config_1.default.query(`
-        update resetPasswordTokens
-        set used = 1
-        where hash = ?
-        `, [hash]);
+        // const [updatePwResult]=await pool.query(`
+        // update store_users
+        // set password = ?
+        // where email = ?
+        // `,[newHash,email])
+        const updatePwResult = yield db_1.default.updateUserPassword({ hash: newHash, table: config_1.tables.users, email: email });
+        const row = yield db_1.default.invalidateUsedPwResetToken({ hash: newHash, table: config_1.tables.resetPasswordTokens });
         console.log(updatePwResult, row);
         if (true) {
             //todo change here, redirect to login
             res.status(200);
             res.json({
-                success: true
+                success: true, updatePwResult, row
             });
         }
     }

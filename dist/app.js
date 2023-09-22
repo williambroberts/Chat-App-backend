@@ -52,6 +52,7 @@ function createApp() {
     if (process.env.SESSION_NAME) {
         SESSION_NAME = process.env.SESSION_NAME;
     }
+    app.set('trust proxy', 1);
     app.use((0, express_session_1.default)({
         name: SESSION_NAME,
         secret: SESSION_SECRET,

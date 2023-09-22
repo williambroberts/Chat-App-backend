@@ -27,6 +27,7 @@ let SESSION_SECRET = "wiejijea"
 if (process.env.SESSION_NAME){
     SESSION_NAME=process.env.SESSION_NAME
 }
+app.set('trust proxy', 1);
 app.use(session({
     name:SESSION_NAME,
     secret:SESSION_SECRET,

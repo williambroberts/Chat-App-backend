@@ -56,11 +56,11 @@ function createApp() {
     app.use((0, express_session_1.default)({
         name: SESSION_NAME,
         secret: SESSION_SECRET,
-        resave: false,
+        resave: true,
         saveUninitialized: false,
         store: sessionStore,
         cookie: {
-            secure: false,
+            secure: true,
             sameSite: 'none'
         }
     }));

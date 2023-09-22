@@ -31,11 +31,11 @@ app.set('trust proxy', 1);
 app.use(session({
     name:SESSION_NAME,
     secret:SESSION_SECRET,
-    resave:false,
+    resave:true,
     saveUninitialized:false,
     store:sessionStore,
     cookie:{
-        secure:false,
+        secure:true,
         sameSite:'none'
     }
 }))

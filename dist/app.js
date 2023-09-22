@@ -60,7 +60,7 @@ function createApp() {
         saveUninitialized: false,
         store: sessionStore,
         cookie: {
-            secure: NODE_ENV === "development" ? false : true,
+            secure: false,
             sameSite: 'none'
         }
     }));

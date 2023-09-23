@@ -143,11 +143,10 @@ export const registerController = ash(async(req:any,res:Response)=>{
 })
 
 export const loginController = ash(async(req:any,res:Response)=>{
-
-
+    const {password,verificationHash,...others}=req.user
     res.status(200)
     res.json({
-        success:true
+        success:true,isAuth:req.isAuthenticated(),user:others
     })
 })
 

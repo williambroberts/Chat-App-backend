@@ -44,6 +44,7 @@ const authMiddleware_1 = require("../Middleware/authMiddleware");
 const authController_1 = require("../Controllers/authController");
 const db_1 = __importDefault(require("../db/db"));
 const ComparePasswords_1 = require("../utils/Bycrypt/ComparePasswords");
+const Errors_1 = require("../utils/Errors");
 const LocalStrategy = local.Strategy;
 passport_1.default.serializeUser(function (user, done) {
     console.log("serializing user", user);
@@ -71,7 +72,7 @@ passport_1.default.deserializeUser(function (id, done) {
 passport_1.default.use(new LocalStrategy({ usernameField: 'email' }, localVerifyFunctionasync));
 function localVerifyFunctionasync(email, password, done) {
     return __awaiter(this, void 0, void 0, function* () {
-        console.log(email, password, "❤️");
+        //console.log(email,password,"❤️")
         //sanitize and validate first
         try {
             // const [row] = await pool.query(
@@ -83,7 +84,7 @@ function localVerifyFunctionasync(email, password, done) {
             //   const user = row[0]
             const result = yield db_1.default.emailExists({ email: email, table: config_1.tables.users });
             //console.log(user)
-            const user = result[0];
+            let user = result[0];
             if (!user) {
                 return done(null, false, { message: "Incorrect email" });
             }
@@ -96,6 +97,13 @@ function localVerifyFunctionasync(email, password, done) {
             ;
             //todo add an additional cookie here
             const row = yield db_1.default.login({ email: email, table: config_1.tables.users });
+            if (!row) {
+                throw new Errors_1.InternalServerError("Failed to update last_login");
+            }
+            console.log(typeof (row), row, Object.keys(row), "row🕊️");
+            //set last_login to now to save a db call
+            let now = new Date(Date.now());
+            user.last_login = now;
             return done(null, user);
         }
         catch (err) {

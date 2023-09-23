@@ -23,6 +23,7 @@ const db:dbType = {
             `select * 
             from ${table}
             WHERE email = ?
+            limit 1
             `
             ,[email])
         return result
@@ -43,7 +44,7 @@ const db:dbType = {
         `,[now,email])
         return row
     },
-    login:async ({table,email}:{table:string,email:string})=>{
+    login:async ({table,email}:{table:string,email:string})=>{//update the last_login to now 
         const now = new Date(Date.now())
         const [row]=await pool.query(`
         update ${table}

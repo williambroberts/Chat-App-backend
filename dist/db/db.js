@@ -18,6 +18,7 @@ const db = {
         const [result] = yield config_1.default.query(`select * 
             from ${table}
             WHERE email = ?
+            limit 1
             `, [email]);
         return result;
     }),

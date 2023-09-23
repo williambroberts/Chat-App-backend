@@ -8,6 +8,7 @@ import { passportIsAuth } from "../Middleware/authMiddleware";
 import { VerifyEmailController, changePasswordController, deleteAccountController, failController, forgotPasswordController, generateVerificationTokenController, loginController, logoutController, registerController, resetPasswordController, statusController, updateProfileController } from "../Controllers/authController";
 import db from "../db/db";
 import { comparePassword } from "../utils/Bycrypt/ComparePasswords";
+import { InternalServerError } from "../utils/Errors";
 const LocalStrategy = local.Strategy
 passport.serializeUser(function(user:any, done) {
     console.log("serializing user",user)
@@ -37,7 +38,7 @@ passport.serializeUser(function(user:any, done) {
   
   
   async function localVerifyFunctionasync(email:string, password:string, done:any) {
-    console.log(email,password,"❤️")
+    //console.log(email,password,"❤️")
     //sanitize and validate first
     try {
         // const [row] = await pool.query(
@@ -49,7 +50,7 @@ passport.serializeUser(function(user:any, done) {
         //   const user = row[0]
         const result = await db.emailExists({email:email,table:tables.users})
         //console.log(user)
-        const user = result[0]
+        let user = result[0]
         if (!user) {
         return done(null, false, { message: "Incorrect email" });
         };
@@ -61,6 +62,13 @@ passport.serializeUser(function(user:any, done) {
         };
         //todo add an additional cookie here
        const row = await db.login({email:email,table:tables.users})
+       if (!row){
+        throw new InternalServerError("Failed to update last_login")
+       }
+        console.log(typeof(row),row,Object.keys(row),"row🕊️")
+       //set last_login to now to save a db call
+        let now = new Date(Date.now())
+        user.last_login = now
         return done(null, user);
     } catch(err) {
         return done(err);
